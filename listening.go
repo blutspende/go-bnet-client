@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -9,22 +10,64 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	CR byte = 0x0D
+)
+
+var replaceAbleBytes = map[byte]string{
+	0x00: "<NUL>",
+	0x01: "<SOH>",
+	0x02: "<STX>",
+	0x03: "<ETX>",
+	0x04: "<EOT>",
+	0x05: "<ENQ>",
+	0x06: "<ACK>",
+	0x07: "<BEL>",
+	0x08: "<BS>",
+	0x09: "<HT>",
+	0x0A: "<LF>",
+	0x0B: "<VT>",
+	0x0C: "<FF>",
+	0x0D: "<CR>",
+	0x0E: "<SO>",
+	0x0F: "<SI>",
+	0x10: "<DLE>",
+	0x11: "<DC1>",
+	0x12: "<DC2>",
+	0x13: "<DC3>",
+	0x14: "<DC4>",
+	0x15: "<NAK>",
+	0x16: "<SYN>",
+	0x17: "<ETB>",
+	0x18: "<CAN>",
+	0x19: "<EM>",
+	0x1A: "<SUB>",
+	0x1B: "<ESC>",
+	0x1C: "<FS>",
+	0x1D: "<GS>",
+	0x1E: "<RS>",
+	0x1F: "<US>",
+}
+
 func ListeningCommand(app *cli.App) {
 	var (
-		listenPort    int
-		maxConn       int
-		protocol      string
-		proxy         string
-		err           error
-		startByte     string
-		endByte       string
-		lineBreakByte string
+		listenPort     int
+		maxConn        int
+		protocol       string
+		proxy          string
+		err            error
+		startByte      string
+		endByte        string
+		lineBreakByte  string
+		rawBytes       bool
+		showLinebreaks bool
+		outPutFileName string
 	)
 
 	command := cli.Command{
 		Name:        "listen",
 		Aliases:     nil,
-		Usage:       "listen <port> <protocol> <maxConn>",
+		Usage:       "listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy(optional): noproxy or haproxyv2>",
 		UsageText:   "",
 		Description: "",
 		ArgsUsage:   "",
@@ -49,13 +92,30 @@ func ListeningCommand(app *cli.App) {
 				Value:       "",
 				Destination: &lineBreakByte,
 			},
+			&cli.StringFlag{
+				Name:        "proxy",
+				Usage:       "proxy (noproxy, haproxyv2)",
+				Required:    false,
+				Value:       "noproxy",
+				Destination: &proxy,
+			},
+			&cli.BoolFlag{
+				Name:        "raw",
+				Usage:       "raw bytes in print",
+				Required:    false,
+				Value:       false,
+				Destination: &rawBytes,
+			},
+			&cli.BoolFlag{
+				Name:        "showLinebreaks",
+				Usage:       "showLinebreaks bytes in print",
+				Required:    false,
+				Value:       false,
+				Destination: &showLinebreaks,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			args := c.Args()
-			givenFlags := c.NArg()
-			if givenFlags != 4 {
-				return fmt.Errorf("invalid amount of arguments. Required: <listenPort> <protocol> <maxconnections> <proxy>")
-			}
 
 			listenPort, err = strconv.Atoi(args.Get(0))
 			if err != nil {
@@ -67,7 +127,6 @@ func ListeningCommand(app *cli.App) {
 				return fmt.Errorf("invalid max conn. Can not parse string to int: %w", err)
 			}
 
-			proxy = args.Get(3)
 			connectionType, err := getProxyCoonnectionType(proxy)
 			if err != nil {
 				return fmt.Errorf("invalid proxy type: %w", err)
@@ -78,7 +137,15 @@ func ListeningCommand(app *cli.App) {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}
 
-			tcpHandler := NewTCPServerHandler()
+			flags := c.Args().Slice()
+
+			isRaw := sliceContains(flags, "--raw")
+			if isRaw {
+				rawBytes = !rawBytes
+			}
+
+			showLinebreaks = sliceContains(flags, "--showLinebreaks")
+			tcpHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName)
 			tcpServer := bloodlabNet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
 			tcpServer.Run(tcpHandler)
 			return nil
@@ -89,6 +156,15 @@ func ListeningCommand(app *cli.App) {
 	app.Commands = append(app.Commands, &command)
 }
 
+func sliceContains(list []string, search string) bool {
+	for _, item := range list {
+		if item == search {
+			return true
+		}
+	}
+	return false
+}
+
 type TCPServerHandler interface {
 	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time)
 	Connected(con bloodlabNet.Session)
@@ -97,10 +173,17 @@ type TCPServerHandler interface {
 }
 
 type tcpServerHandler struct {
+	showRawBytes   bool
+	showLineBreaks bool
+	outPutFileName string
 }
 
-func NewTCPServerHandler() TCPServerHandler {
-	return &tcpServerHandler{}
+func NewTCPServerHandler(showRawBytes, showLineBreaks bool, outPutFileName string) TCPServerHandler {
+	return &tcpServerHandler{
+		showRawBytes:   showRawBytes,
+		showLineBreaks: showLineBreaks,
+		outPutFileName: outPutFileName,
+	}
 }
 func (h *tcpServerHandler) Connected(session bloodlabNet.Session) {
 	// Is instrument whitelisted
@@ -113,12 +196,32 @@ func (h *tcpServerHandler) Connected(session bloodlabNet.Session) {
 }
 
 func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) {
-	remoteAddress, err := session.RemoteAddress()
+	_, err := session.RemoteAddress()
 	if err != nil {
 		println(fmt.Errorf("can not get remote address: %w", err))
 	}
 
-	println(fmt.Sprintf("Client(%s) successfully transferred Data(%d bytes): %s ", remoteAddress, len(fileData), string(fileData)))
+	readAbleFile := make([]byte, 0)
+	for _, fileByte := range fileData {
+		if fileByte == CR && !h.showLineBreaks && h.showRawBytes {
+			readAbleFile = append(readAbleFile, []byte("\n")...)
+			continue
+		}
+
+		if h.showRawBytes {
+			readAbleFile = append(readAbleFile, fileByte)
+			continue
+		}
+
+		readableByte, ok := replaceAbleBytes[fileByte]
+		if ok {
+			readAbleFile = append(readAbleFile, []byte(readableByte)...)
+		} else {
+			readAbleFile = append(readAbleFile, fileByte)
+		}
+
+	}
+	fmt.Fprintln(os.Stdout, string(readAbleFile))
 }
 
 func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 )
 
 func SendingCommand(c *cli.App) {
@@ -84,6 +85,7 @@ func SendingCommand(c *cli.App) {
 			}
 
 			println(fmt.Sprintf("Successfully sent data: %s", string(bytes)))
+			time.Sleep(time.Second)
 			tcpClient.Close()
 			return nil
 		},

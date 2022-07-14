@@ -1,4 +1,4 @@
-module bnet-client
+module bnet
 
 go 1.18
 

@@ -1,0 +1,12 @@
+*.pem
+*.ppk
+*.exe
+setenv.sh
+
+test.p12/
+
+src/__debug_bin
+**/main
+
+.vscode
+.idea/
