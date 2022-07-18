@@ -38,7 +38,7 @@ func getLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabne
 		protocolTypeImplementation = bloodlabnetProtocol.STXETX(bloodlabnetProtocol.DefaultSTXETXProtocolSettings())
 	case "lis1a1":
 		protocolTypeImplementation = bloodlabnetProtocol.Lis1A1Protocol(bloodlabnetProtocol.DefaultLis1A1ProtocolSettings())
-	case "mlp":
+	case "mllp":
 		config := bloodlabnetProtocol.DefaultMLLPProtocolSettings()
 		if startByte != "" {
 			startByteInt, err := strconv.Atoi(startByte)
@@ -57,7 +57,7 @@ func getLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabne
 		}
 		protocolTypeImplementation = bloodlabnetProtocol.MLLP(config)
 	default:
-		return nil, fmt.Errorf("invalid protocol type given: %s , supported:raw,stxetx,lis1a1,mlp", protocol)
+		return nil, fmt.Errorf("invalid protocol type given: %s , supported:raw,stxetx,lis1a1,mllp", protocol)
 
 	}
 
