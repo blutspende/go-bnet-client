@@ -3,7 +3,7 @@ module bnet
 go 1.18
 
 require (
-	github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net v0.3.5
+	github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net v0.3.6
 	github.com/urfave/cli/v2 v2.11.0
 )
 

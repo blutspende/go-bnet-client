@@ -91,9 +91,9 @@ func SendingCommand(c *cli.App) {
 			if err != nil {
 				return fmt.Errorf("failed to send file to host: %s", err.Error())
 			}
-
+			time.Sleep(time.Second * 5)
 			println("Successfully sent data")
-			time.Sleep(time.Second)
+
 			tcpClient.Close()
 			return nil
 		},
