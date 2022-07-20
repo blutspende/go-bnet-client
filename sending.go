@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
@@ -68,9 +69,16 @@ func SendingCommand(c *cli.App) {
 				return fmt.Errorf("invalid port in hostname: %s err: %s", port, err.Error())
 			}
 
-			bytes, err := os.ReadFile(args.Get(2))
+			file, err := os.Open(args.Get(2))
 			if err != nil {
 				return fmt.Errorf("failed to open file with path: %s and error: %s", path, err.Error())
+			}
+
+			scanner := bufio.NewScanner(file)
+			scanner.Split(bufio.ScanLines)
+			var fileLines = make([][]byte, 0)
+			for scanner.Scan() {
+				fileLines = append(fileLines, []byte(scanner.Text()))
 			}
 
 			tcpClient := bloodlabnet.CreateNewTCPClient(host, portInt, protocolTypeImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPServerSettings)
@@ -79,12 +87,12 @@ func SendingCommand(c *cli.App) {
 				return fmt.Errorf("cannot connect to host (%s): %s", hostname, err.Error())
 			}
 
-			_, err = tcpClient.Send([][]byte{bytes})
+			_, err = tcpClient.Send(fileLines)
 			if err != nil {
 				return fmt.Errorf("failed to send file to host: %s", err.Error())
 			}
 
-			println(fmt.Sprintf("Successfully sent data: %s", string(bytes)))
+			println("Successfully sent data")
 			time.Sleep(time.Second)
 			tcpClient.Close()
 			return nil

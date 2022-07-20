@@ -53,7 +53,7 @@ func getLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabne
 			if err != nil {
 				return nil, fmt.Errorf("invalid endbyte: %s, err: %s", endByteInt, err.Error())
 			}
-			config = config.SetStartByte(byte(endByteInt))
+			config = config.SetEndByte(byte(endByteInt))
 		}
 		protocolTypeImplementation = bloodlabnetProtocol.MLLP(config)
 	default:
