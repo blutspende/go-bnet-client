@@ -87,12 +87,17 @@ func SendingCommand(c *cli.App) {
 				return fmt.Errorf("cannot connect to host (%s): %s", hostname, err.Error())
 			}
 
-			_, err = tcpClient.Send(fileLines)
+			n, err := tcpClient.Send(fileLines)
 			if err != nil {
 				return fmt.Errorf("failed to send file to host: %s", err.Error())
 			}
 			time.Sleep(time.Second * 5)
-			println("Successfully sent data")
+
+			if n <= 0 {
+				println("No data was sent by the client")
+			} else {
+				println("Successfully sent data")
+			}
 
 			tcpClient.Close()
 			return nil
