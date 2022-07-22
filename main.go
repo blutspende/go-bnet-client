@@ -14,10 +14,9 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:                 "BloodLab Net client helper",
-		Usage:                "Transfer a file to a TCP Server over BloodlabNet library",
+		Name:                 "Bnet helper",
+		Usage:                "Transfer a file to a TCP Server over BloodlabNet library or listen as a TCP Server",
 		EnableBashCompletion: true,
-		Version:              "v0.1.0",
 	}
 
 	SendingCommand(app)
