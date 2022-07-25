@@ -167,7 +167,7 @@ func sliceContains(list []string, search string) bool {
 
 type TCPServerHandler interface {
 	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time)
-	Connected(con bloodlabNet.Session)
+	Connected(con bloodlabNet.Session) error
 	Disconnected(session bloodlabNet.Session)
 	Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error)
 }
@@ -185,14 +185,16 @@ func NewTCPServerHandler(showRawBytes, showLineBreaks bool, outPutFileName strin
 		outPutFileName: outPutFileName,
 	}
 }
-func (h *tcpServerHandler) Connected(session bloodlabNet.Session) {
+func (h *tcpServerHandler) Connected(session bloodlabNet.Session) error {
 	// Is instrument whitelisted
 	remoteAddress, err := session.RemoteAddress()
 	if err != nil {
 		println(fmt.Errorf("can not get remote address: %w", err))
 		session.Close()
+		return err
 	}
 	println(fmt.Sprintf("Client successfully conntected with IP: %s", remoteAddress))
+	return nil
 }
 
 func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) {

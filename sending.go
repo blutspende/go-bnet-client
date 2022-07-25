@@ -81,7 +81,7 @@ func SendingCommand(c *cli.App) {
 				fileLines = append(fileLines, []byte(scanner.Text()))
 			}
 
-			tcpClient := bloodlabnet.CreateNewTCPClient(host, portInt, protocolTypeImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPServerSettings)
+			tcpClient := bloodlabnet.CreateNewTCPClient(host, portInt, protocolTypeImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
 			err = tcpClient.Connect()
 			if err != nil {
 				return fmt.Errorf("cannot connect to host (%s): %s", hostname, err.Error())
