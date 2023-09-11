@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
-	"github.com/urfave/cli/v2"
 	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 
 	SendingCommand(app)
 	ListeningCommand(app)
+	QueryCommand(app)
 
 	err := app.Run(os.Args)
 	if err != nil {

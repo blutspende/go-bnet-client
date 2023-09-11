@@ -1,53 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
 )
-
-const (
-	CR byte = 0x0D
-)
-
-var replaceAbleBytes = map[byte]string{
-	0x00: "<NUL>",
-	0x01: "<SOH>",
-	0x02: "<STX>",
-	0x03: "<ETX>",
-	0x04: "<EOT>",
-	0x05: "<ENQ>",
-	0x06: "<ACK>",
-	0x07: "<BEL>",
-	0x08: "<BS>",
-	0x09: "<HT>",
-	0x0A: "<LF>",
-	0x0B: "<VT>",
-	0x0C: "<FF>",
-	0x0D: "<CR>",
-	0x0E: "<SO>",
-	0x0F: "<SI>",
-	0x10: "<DLE>",
-	0x11: "<DC1>",
-	0x12: "<DC2>",
-	0x13: "<DC3>",
-	0x14: "<DC4>",
-	0x15: "<NAK>",
-	0x16: "<SYN>",
-	0x17: "<ETB>",
-	0x18: "<CAN>",
-	0x19: "<EM>",
-	0x1A: "<SUB>",
-	0x1B: "<ESC>",
-	0x1C: "<FS>",
-	0x1D: "<GS>",
-	0x1E: "<RS>",
-	0x1F: "<US>",
-}
 
 func ListeningCommand(app *cli.App) {
 	var (
@@ -65,12 +28,10 @@ func ListeningCommand(app *cli.App) {
 	)
 
 	command := cli.Command{
-		Name:        "listen",
-		Aliases:     nil,
-		Usage:       "listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy(optional): noproxy or haproxyv2>",
-		UsageText:   "",
-		Description: "",
-		ArgsUsage:   "",
+		Name:    "listen",
+		Aliases: nil,
+		Usage: `listen for incomming message
+		cli args -> listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy: noproxy or haproxyv2> <logfile <optional>:  yes or no>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -135,6 +96,11 @@ func ListeningCommand(app *cli.App) {
 			protocolImplementation, err := getLowLevelProtocol(protocol, startByte, endByte)
 			if err != nil {
 				return fmt.Errorf("can not find protocol: %w", err)
+			}
+
+			logfile := args.Get(4)
+			if strings.ToLower(logfile) == "yes" {
+				outPutFileName = fmt.Sprintf("log_%s.dat", time.Now().Format("20060102_150405"))
 			}
 
 			flags := c.Args().Slice()
@@ -215,13 +181,17 @@ func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []
 			continue
 		}
 
-		readableByte, ok := replaceAbleBytes[fileByte]
+		readableByte, ok := ReplaceAbleBytes[fileByte]
 		if ok {
 			readAbleFile = append(readAbleFile, []byte(readableByte)...)
 		} else {
 			readAbleFile = append(readAbleFile, fileByte)
 		}
 
+	}
+
+	if len(h.outPutFileName) > 0 {
+		h.writeLogFile(string(readAbleFile))
 	}
 	fmt.Fprintln(os.Stdout, string(readAbleFile))
 }
@@ -235,6 +205,25 @@ func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {
 
 	println(fmt.Sprintf("Client with %s is disconnected", remoteAddress))
 
+}
+
+func (h *tcpServerHandler) writeLogFile(logData string) {
+
+	logFile, err := os.OpenFile(h.outPutFileName, os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		println(fmt.Errorf("can not open file: %w", err))
+	}
+	defer logFile.Close()
+	logFileWriter := bufio.NewWriter(logFile)
+	logDataLines := strings.Split(logData, "<CR>")
+	for _, logDataLine := range logDataLines {
+		_, err = logFileWriter.WriteString(logDataLine + "\n")
+		if err != nil {
+			println(fmt.Errorf("can not write to file: %w", err))
+			return
+		}
+	}
+	logFileWriter.Flush()
 }
 
 func (h *tcpServerHandler) Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error) {

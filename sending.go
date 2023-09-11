@@ -3,12 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	"github.com/urfave/cli/v2"
 	"net"
 	"os"
 	"strconv"
 	"time"
+
+	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	"github.com/urfave/cli/v2"
 )
 
 func SendingCommand(c *cli.App) {
@@ -22,8 +23,9 @@ func SendingCommand(c *cli.App) {
 	)
 
 	command := cli.Command{
-		Name:  "send",
-		Usage: "send a file to a tcp server",
+		Name: "send",
+		Usage: `send a file to a tcp server
+		cli args -> send <hostname> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <filename>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
