@@ -14,6 +14,9 @@ import (
 
 func QueryCommand(app *cli.App) {
 	var (
+		deviceHost     string
+		devicePort     string
+		devicePortInt  int
 		listenPort     int
 		maxConn        int
 		protocol       string
@@ -23,14 +26,13 @@ func QueryCommand(app *cli.App) {
 		lineBreakByte  string
 		rawBytes       bool
 		showLinebreaks bool
-		outPutFileName string
 	)
 
 	command := cli.Command{
 		Name:    "query",
 		Aliases: nil,
 		Usage: `send filecontent to device, waiting for answer, log answer to file
-		cli args -> query <filename> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <device> <listenport> <maxcon Default:10> <proxy: noproxy or haproxyv2>`,
+		cli args -> query <filename> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <devicehost> <listenport> <maxcon Default:10> <proxy: noproxy or haproxyv2>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -85,12 +87,12 @@ func QueryCommand(app *cli.App) {
 
 			protocol = args.Get(1)
 
-			deviceHost, devicePort, err := net.SplitHostPort(args.Get(2))
+			deviceHost, devicePort, err = net.SplitHostPort(args.Get(2))
 			if err != nil {
 				return fmt.Errorf("invalid device: %s err: %s", args.Get(2), err.Error())
 			}
 
-			devicePortInt, err := strconv.Atoi(devicePort)
+			devicePortInt, err = strconv.Atoi(devicePort)
 			if err != nil {
 				return fmt.Errorf("invalid port in hostname: %s err: %s", devicePort, err.Error())
 			}
@@ -115,8 +117,6 @@ func QueryCommand(app *cli.App) {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}
 
-			outPutFileName = fmt.Sprintf("log_%s.txt", time.Now().Format("20060102_150405"))
-
 			flags := c.Args().Slice()
 
 			isRaw := sliceContains(flags, "--raw")
@@ -124,38 +124,52 @@ func QueryCommand(app *cli.App) {
 				rawBytes = !rawBytes
 			}
 
-			scanner := bufio.NewScanner(file)
-			scanner.Split(bufio.ScanLines)
-			var fileLines = make([][]byte, 0)
-			for scanner.Scan() {
-				fileLines = append(fileLines, []byte(scanner.Text()))
-			}
+			go func() {
+				scanner := bufio.NewScanner(file)
+				scanner.Split(bufio.ScanLines)
+				var fileLines = make([][]byte, 0)
+				for scanner.Scan() {
+					fileLines = append(fileLines, []byte(scanner.Text()))
+				}
 
-			tcpClient := bloodlabnet.CreateNewTCPClient(deviceHost, devicePortInt, protocolImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
-			err = tcpClient.Connect()
-			if err != nil {
-				return fmt.Errorf("cannot connect to host (%s): %s", args.Get(2), err.Error())
-			}
+				tcpClient := bloodlabnet.CreateNewTCPClient(deviceHost, devicePortInt, protocolImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
+				err = tcpClient.Connect()
+				if err != nil {
+					println(fmt.Errorf("cannot connect to host (%s): %s", args.Get(2), err.Error()))
+					return
+				}
 
-			n, err := tcpClient.Send(fileLines)
-			if err != nil {
-				return fmt.Errorf("failed to send file to host: %s", err.Error())
-			}
-			time.Sleep(time.Second * 5)
+				n, err := tcpClient.Send(fileLines)
+				if err != nil {
+					println(fmt.Errorf("failed to send file to host: %s", err.Error()))
+					return
+				}
+				time.Sleep(time.Second * 5)
 
-			if n <= 0 {
-				println("No data was sent by the client")
-			} else {
-				println("Successfully sent data")
-			}
+				if n <= 0 {
+					println("No data was sent by the client")
+				} else {
+					println("Successfully sent data")
+				}
 
-			tcpClient.Close()
+				tcpClient.Close()
+			}()
 
 			showLinebreaks = sliceContains(flags, "--showLinebreaks")
-			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName)
+			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, true, "query_%s.log")
 			tcpServer := bloodlabnet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
-			tcpServer.Run(tcpServerHandler)
+			go tcpServer.Run(tcpServerHandler)
+
+			for {
+				if tcpServerHandler.DataReceivedAndisconnected() {
+					tcpServer.Stop()
+					break
+				}
+				time.Sleep(time.Second * 5)
+			}
+
 			return nil
+
 		},
 		Subcommands: nil,
 	}

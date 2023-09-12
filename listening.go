@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
@@ -24,14 +21,13 @@ func ListeningCommand(app *cli.App) {
 		lineBreakByte  string
 		rawBytes       bool
 		showLinebreaks bool
-		outPutFileName string
 	)
 
 	command := cli.Command{
 		Name:    "listen",
 		Aliases: nil,
 		Usage: `listen for incomming message
-		cli args -> listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy: noproxy or haproxyv2> <logfile <optional>:  yes or no>`,
+		cli args -> listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy: noproxy or haproxyv2> <logfile (optional):  yes or no>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -99,8 +95,11 @@ func ListeningCommand(app *cli.App) {
 			}
 
 			logfile := args.Get(4)
+			outPutFileMask := ""
+			createOutPutFile := false
 			if strings.ToLower(logfile) == "yes" {
-				outPutFileName = fmt.Sprintf("log_%s.dat", time.Now().Format("20060102_150405"))
+				createOutPutFile = true
+				outPutFileMask = "listen_%s.log"
 			}
 
 			flags := c.Args().Slice()
@@ -111,7 +110,7 @@ func ListeningCommand(app *cli.App) {
 			}
 
 			showLinebreaks = sliceContains(flags, "--showLinebreaks")
-			tcpHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName)
+			tcpHandler := NewTCPServerHandler(rawBytes, showLinebreaks, createOutPutFile, outPutFileMask)
 			tcpServer := bloodlabNet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
 			tcpServer.Run(tcpHandler)
 			return nil
@@ -129,103 +128,4 @@ func sliceContains(list []string, search string) bool {
 		}
 	}
 	return false
-}
-
-type TCPServerHandler interface {
-	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time)
-	Connected(con bloodlabNet.Session) error
-	Disconnected(session bloodlabNet.Session)
-	Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error)
-}
-
-type tcpServerHandler struct {
-	showRawBytes   bool
-	showLineBreaks bool
-	outPutFileName string
-}
-
-func NewTCPServerHandler(showRawBytes, showLineBreaks bool, outPutFileName string) TCPServerHandler {
-	return &tcpServerHandler{
-		showRawBytes:   showRawBytes,
-		showLineBreaks: showLineBreaks,
-		outPutFileName: outPutFileName,
-	}
-}
-func (h *tcpServerHandler) Connected(session bloodlabNet.Session) error {
-	// Is instrument whitelisted
-	remoteAddress, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-		session.Close()
-		return err
-	}
-	println(fmt.Sprintf("Client successfully conntected with IP: %s", remoteAddress))
-	return nil
-}
-
-func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) {
-	_, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-	}
-
-	readAbleFile := make([]byte, 0)
-	for _, fileByte := range fileData {
-		if fileByte == CR && !h.showLineBreaks && h.showRawBytes {
-			readAbleFile = append(readAbleFile, []byte("\n")...)
-			continue
-		}
-
-		if h.showRawBytes {
-			readAbleFile = append(readAbleFile, fileByte)
-			continue
-		}
-
-		readableByte, ok := ReplaceAbleBytes[fileByte]
-		if ok {
-			readAbleFile = append(readAbleFile, []byte(readableByte)...)
-		} else {
-			readAbleFile = append(readAbleFile, fileByte)
-		}
-
-	}
-
-	if len(h.outPutFileName) > 0 {
-		h.writeLogFile(string(readAbleFile))
-	}
-	fmt.Fprintln(os.Stdout, string(readAbleFile))
-}
-
-func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {
-	// Is instrument whitelisted
-	remoteAddress, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-	}
-
-	println(fmt.Sprintf("Client with %s is disconnected", remoteAddress))
-
-}
-
-func (h *tcpServerHandler) writeLogFile(logData string) {
-
-	logFile, err := os.OpenFile(h.outPutFileName, os.O_APPEND|os.O_CREATE, 0644)
-	if err != nil {
-		println(fmt.Errorf("can not open file: %w", err))
-	}
-	defer logFile.Close()
-	logFileWriter := bufio.NewWriter(logFile)
-	logDataLines := strings.Split(logData, "<CR>")
-	for _, logDataLine := range logDataLines {
-		_, err = logFileWriter.WriteString(logDataLine + "\n")
-		if err != nil {
-			println(fmt.Errorf("can not write to file: %w", err))
-			return
-		}
-	}
-	logFileWriter.Flush()
-}
-
-func (h *tcpServerHandler) Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error) {
-	println(fmt.Errorf("error: %w", err))
 }
