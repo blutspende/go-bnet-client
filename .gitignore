@@ -1,6 +1,8 @@
 *.pem
 *.ppk
-*.exe
+*.log
+*.dat
+*.txt
 setenv.sh
 
 test.p12/

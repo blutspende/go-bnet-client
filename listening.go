@@ -2,52 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
 )
-
-const (
-	CR byte = 0x0D
-)
-
-var replaceAbleBytes = map[byte]string{
-	0x00: "<NUL>",
-	0x01: "<SOH>",
-	0x02: "<STX>",
-	0x03: "<ETX>",
-	0x04: "<EOT>",
-	0x05: "<ENQ>",
-	0x06: "<ACK>",
-	0x07: "<BEL>",
-	0x08: "<BS>",
-	0x09: "<HT>",
-	0x0A: "<LF>",
-	0x0B: "<VT>",
-	0x0C: "<FF>",
-	0x0D: "<CR>",
-	0x0E: "<SO>",
-	0x0F: "<SI>",
-	0x10: "<DLE>",
-	0x11: "<DC1>",
-	0x12: "<DC2>",
-	0x13: "<DC3>",
-	0x14: "<DC4>",
-	0x15: "<NAK>",
-	0x16: "<SYN>",
-	0x17: "<ETB>",
-	0x18: "<CAN>",
-	0x19: "<EM>",
-	0x1A: "<SUB>",
-	0x1B: "<ESC>",
-	0x1C: "<FS>",
-	0x1D: "<GS>",
-	0x1E: "<RS>",
-	0x1F: "<US>",
-}
 
 func ListeningCommand(app *cli.App) {
 	var (
@@ -61,16 +22,13 @@ func ListeningCommand(app *cli.App) {
 		lineBreakByte  string
 		rawBytes       bool
 		showLinebreaks bool
-		outPutFileName string
 	)
 
 	command := cli.Command{
-		Name:        "listen",
-		Aliases:     nil,
-		Usage:       "listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy(optional): noproxy or haproxyv2>",
-		UsageText:   "",
-		Description: "",
-		ArgsUsage:   "",
+		Name:    "listen",
+		Aliases: nil,
+		Usage: `listen for incomming message
+		cli args -> listen <listenport> <protocol [raw|lis1a1|stxetx|mllp]> <maxcon> <proxy: noproxy or haproxyv2> <logfile (optional):  yes or no>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -137,6 +95,12 @@ func ListeningCommand(app *cli.App) {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}
 
+			logfile := args.Get(4)
+			outPutFileName := ""
+			if strings.ToLower(logfile) == "yes" {
+				outPutFileName = fmt.Sprintf("listen_%s.log", time.Now().Format("20060102_150405"))
+			}
+
 			flags := c.Args().Slice()
 
 			isRaw := sliceContains(flags, "--raw")
@@ -145,9 +109,10 @@ func ListeningCommand(app *cli.App) {
 			}
 
 			showLinebreaks = sliceContains(flags, "--showLinebreaks")
-			tcpHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName)
+
+			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName, "", "", protocolImplementation)
 			tcpServer := bloodlabNet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
-			tcpServer.Run(tcpHandler)
+			tcpServer.Run(tcpServerHandler)
 			return nil
 		},
 		Subcommands: nil,
@@ -163,80 +128,4 @@ func sliceContains(list []string, search string) bool {
 		}
 	}
 	return false
-}
-
-type TCPServerHandler interface {
-	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time)
-	Connected(con bloodlabNet.Session) error
-	Disconnected(session bloodlabNet.Session)
-	Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error)
-}
-
-type tcpServerHandler struct {
-	showRawBytes   bool
-	showLineBreaks bool
-	outPutFileName string
-}
-
-func NewTCPServerHandler(showRawBytes, showLineBreaks bool, outPutFileName string) TCPServerHandler {
-	return &tcpServerHandler{
-		showRawBytes:   showRawBytes,
-		showLineBreaks: showLineBreaks,
-		outPutFileName: outPutFileName,
-	}
-}
-func (h *tcpServerHandler) Connected(session bloodlabNet.Session) error {
-	// Is instrument whitelisted
-	remoteAddress, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-		session.Close()
-		return err
-	}
-	println(fmt.Sprintf("Client successfully conntected with IP: %s", remoteAddress))
-	return nil
-}
-
-func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) {
-	_, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-	}
-
-	readAbleFile := make([]byte, 0)
-	for _, fileByte := range fileData {
-		if fileByte == CR && !h.showLineBreaks && h.showRawBytes {
-			readAbleFile = append(readAbleFile, []byte("\n")...)
-			continue
-		}
-
-		if h.showRawBytes {
-			readAbleFile = append(readAbleFile, fileByte)
-			continue
-		}
-
-		readableByte, ok := replaceAbleBytes[fileByte]
-		if ok {
-			readAbleFile = append(readAbleFile, []byte(readableByte)...)
-		} else {
-			readAbleFile = append(readAbleFile, fileByte)
-		}
-
-	}
-	fmt.Fprintln(os.Stdout, string(readAbleFile))
-}
-
-func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {
-	// Is instrument whitelisted
-	remoteAddress, err := session.RemoteAddress()
-	if err != nil {
-		println(fmt.Errorf("can not get remote address: %w", err))
-	}
-
-	println(fmt.Sprintf("Client with %s is disconnected", remoteAddress))
-
-}
-
-func (h *tcpServerHandler) Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error) {
-	println(fmt.Errorf("error: %w", err))
 }
