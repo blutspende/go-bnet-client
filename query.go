@@ -32,7 +32,7 @@ func QueryCommand(app *cli.App) {
 		Name:    "query",
 		Aliases: nil,
 		Usage: `send filecontent to device, waiting for answer, log answer to file
-		cli args -> query <filename> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <devicehost> <listenport> <maxcon Default:10> <proxy: noproxy or haproxyv2>`,
+		cli args -> query <filename> <protocol [raw|lis1a1|stxetx|mllp]> <devicehost> <listenport> <maxcon> <proxy: noproxy or haproxyv2>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -156,7 +156,8 @@ func QueryCommand(app *cli.App) {
 			}()
 
 			showLinebreaks = sliceContains(flags, "--showLinebreaks")
-			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, true, "query_%s.log")
+			outPutFileName := fmt.Sprintf("query_%s.log", time.Now().Format("20060102_150405"))
+			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName, "", "", protocolImplementation)
 			tcpServer := bloodlabnet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
 			go tcpServer.Run(tcpServerHandler)
 

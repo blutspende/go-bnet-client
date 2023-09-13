@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
@@ -27,7 +28,7 @@ func ListeningCommand(app *cli.App) {
 		Name:    "listen",
 		Aliases: nil,
 		Usage: `listen for incomming message
-		cli args -> listen <port> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <maxcon Default:10> <proxy: noproxy or haproxyv2> <logfile (optional):  yes or no>`,
+		cli args -> listen <listenport> <protocol [raw|lis1a1|stxetx|mllp]> <maxcon> <proxy: noproxy or haproxyv2> <logfile (optional):  yes or no>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -95,11 +96,9 @@ func ListeningCommand(app *cli.App) {
 			}
 
 			logfile := args.Get(4)
-			outPutFileMask := ""
-			createOutPutFile := false
+			outPutFileName := ""
 			if strings.ToLower(logfile) == "yes" {
-				createOutPutFile = true
-				outPutFileMask = "listen_%s.log"
+				outPutFileName = fmt.Sprintf("listen_%s.log", time.Now().Format("20060102_150405"))
 			}
 
 			flags := c.Args().Slice()
@@ -110,9 +109,10 @@ func ListeningCommand(app *cli.App) {
 			}
 
 			showLinebreaks = sliceContains(flags, "--showLinebreaks")
-			tcpHandler := NewTCPServerHandler(rawBytes, showLinebreaks, createOutPutFile, outPutFileMask)
+
+			tcpServerHandler := NewTCPServerHandler(rawBytes, showLinebreaks, outPutFileName, "", "", protocolImplementation)
 			tcpServer := bloodlabNet.CreateNewTCPServerInstance(listenPort, protocolImplementation, connectionType, maxConn)
-			tcpServer.Run(tcpHandler)
+			tcpServer.Run(tcpServerHandler)
 			return nil
 		},
 		Subcommands: nil,

@@ -3,11 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
 )
 
 type TCPServerHandler interface {
@@ -15,27 +19,28 @@ type TCPServerHandler interface {
 	Connected(con bloodlabNet.Session) error
 	Disconnected(session bloodlabNet.Session)
 	Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error)
-	GetOutPutFileName() string
-	DeleteOutPutFileName()
 	DataReceivedAndisconnected() bool
 }
 
 type tcpServerHandler struct {
-	showRawBytes     bool
-	showLineBreaks   bool
-	outPutFileName   string
-	createOutPutFile bool
-	outPutFileMask   string
-	dataReceived     bool
-	disconnected     bool
+	showRawBytes           bool
+	showLineBreaks         bool
+	outPutFileName         string
+	sendBackHost           string
+	sendBackFile           string
+	dataReceived           bool
+	disconnected           bool
+	protocolImplementation bloodlabnetProtocol.Implementation
 }
 
-func NewTCPServerHandler(showRawBytes, showLineBreaks bool, createOutPutFile bool, outPutFileMask string) TCPServerHandler {
+func NewTCPServerHandler(showRawBytes, showLineBreaks bool, outPutFileName string, sendBackHost string, sendBackFile string, protocolImplementation bloodlabnetProtocol.Implementation) TCPServerHandler {
 	return &tcpServerHandler{
-		showRawBytes:     showRawBytes,
-		showLineBreaks:   showLineBreaks,
-		createOutPutFile: createOutPutFile,
-		outPutFileMask:   outPutFileMask,
+		showRawBytes:           showRawBytes,
+		showLineBreaks:         showLineBreaks,
+		outPutFileName:         outPutFileName,
+		sendBackHost:           sendBackHost,
+		sendBackFile:           sendBackFile,
+		protocolImplementation: protocolImplementation,
 	}
 }
 func (h *tcpServerHandler) Connected(session bloodlabNet.Session) error {
@@ -54,10 +59,6 @@ func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []
 	_, err := session.RemoteAddress()
 	if err != nil {
 		println(fmt.Errorf("can not get remote address: %w", err))
-	}
-
-	if h.createOutPutFile && len(h.outPutFileName) == 0 {
-		h.outPutFileName = fmt.Sprintf(h.outPutFileMask, time.Now().Format("20060102_150405"))
 	}
 
 	readAbleFile := make([]byte, 0)
@@ -84,6 +85,9 @@ func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []
 	if len(h.outPutFileName) > 0 {
 		h.writeLogFile(string(readAbleFile))
 	}
+	if len(h.sendBackHost) > 0 {
+		h.sendBack(readAbleFile)
+	}
 	fmt.Fprintln(os.Stdout, string(readAbleFile))
 	h.dataReceived = true
 }
@@ -98,14 +102,6 @@ func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {
 	println(fmt.Sprintf("Client with %s is disconnected", remoteAddress))
 
 	h.disconnected = true
-}
-
-func (h *tcpServerHandler) GetOutPutFileName() string {
-	return h.outPutFileName
-}
-
-func (h *tcpServerHandler) DeleteOutPutFileName() {
-	h.outPutFileName = ""
 }
 
 func (h *tcpServerHandler) DataReceivedAndisconnected() bool {
@@ -135,6 +131,61 @@ func (h *tcpServerHandler) writeLogFile(logData string) {
 	logFile.Close()
 
 	println(fmt.Sprintf("Create log file %s", h.outPutFileName))
+}
+
+func (h *tcpServerHandler) sendBack(logData []byte) {
+
+	var fileLines = make([][]byte, 0)
+
+	sendHost, sendPort, err := net.SplitHostPort(h.sendBackHost)
+	if err != nil {
+		println(fmt.Errorf("invalid device: %s err: %s", h.sendBackHost, err.Error()))
+		return
+	}
+
+	sendPortInt, err := strconv.Atoi(sendPort)
+	if err != nil {
+		println(fmt.Errorf("invalid port in hostname: %s err: %s", sendPort, err.Error()))
+		return
+	}
+
+	if len(h.sendBackFile) > 0 {
+		file, err := os.Open(h.sendBackFile)
+		if err != nil {
+			println(fmt.Errorf("failed to open file: %s error: %s", h.sendBackFile, err.Error()))
+			return
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+		for scanner.Scan() {
+			fileLines = append(fileLines, []byte(scanner.Text()))
+		}
+		file.Close()
+	} else {
+		fileLines = append(fileLines, logData)
+	}
+
+	tcpClient := bloodlabnet.CreateNewTCPClient(sendHost, sendPortInt, h.protocolImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
+	err = tcpClient.Connect()
+	if err != nil {
+		println(fmt.Errorf("cannot connect to host (%s): %s", h.sendBackHost, err.Error()))
+		return
+	}
+
+	n, err := tcpClient.Send(fileLines)
+	if err != nil {
+		println(fmt.Errorf("failed to send file to host: %s", err.Error()))
+		return
+	}
+	time.Sleep(time.Second * 5)
+
+	if n <= 0 {
+		println("No data was sent by the client")
+	} else {
+		println("Successfully sent data")
+	}
+
+	tcpClient.Close()
 }
 
 func (h *tcpServerHandler) Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error) {
