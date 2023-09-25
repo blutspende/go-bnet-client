@@ -3,6 +3,7 @@
 *.log
 *.dat
 *.txt
+*.7z
 setenv.sh
 
 test.p12/
