@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	bloodlabnet "github.com/blutspende/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
 )
 

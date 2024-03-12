@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
+	bloodlabNet "github.com/blutspende/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
 )
 

@@ -7,17 +7,17 @@ import (
 	"strconv"
 	"strings"
 
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
+	bloodlabnet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnetProtocol "github.com/blutspende/go-bloodlab-net/protocol"
 	"github.com/urfave/cli/v2"
 )
 
-var Version = "0.5.1"
+var Version = "0.5.2"
 
 func main() {
 	app := &cli.App{
-		Name:                 "Bnet helper",
-		Usage:                "Transfer a file to a TCP Server over BloodlabNet library or listen as a TCP Server",
+		Name:                 "Bnet-tool",
+		Usage:                "Communicate with lab equipment over low-level protocols mllp, lisA1, StxEtx",
 		EnableBashCompletion: true,
 		Version:              Version,
 	}
