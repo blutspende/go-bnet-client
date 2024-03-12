@@ -54,7 +54,7 @@ func SendingCommand(c *cli.App) {
 				return fmt.Errorf("required: <hostname> <protocol> <file>")
 			}
 
-			protocol, err := getLowLevelProtocol(args.Get(1), startByte, endByte)
+			protocol, err := makeLowLevelProtocol(args.Get(1), startByte, endByte)
 			if err != nil {
 				return fmt.Errorf("invalid protocol '%w'", err)
 			}

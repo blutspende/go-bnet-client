@@ -94,7 +94,7 @@ func DeviceCommand(app *cli.App) {
 
 			queryAnswerFile := args.Get(5)
 
-			protocolImplementation, err := getLowLevelProtocol(protocol, startByte, endByte)
+			protocolImplementation, err := makeLowLevelProtocol(protocol, startByte, endByte)
 			if err != nil {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}

@@ -25,7 +25,7 @@ func main() {
 	SendingCommand(app)
 	ListeningCommand(app)
 	DeviceCommand(app)
-	QueryCommandClientMode(app)
+	QueryCommand(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
@@ -33,7 +33,7 @@ func main() {
 	}
 }
 
-func getLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabnetProtocol.Implementation, error) {
+func makeLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabnetProtocol.Implementation, error) {
 	var protocolTypeImplementation bloodlabnetProtocol.Implementation
 	switch protocol {
 	case "raw":

@@ -112,7 +112,7 @@ func QueryCommandMixedMode(app *cli.App) {
 				return fmt.Errorf("invalid proxy type: %w", err)
 			}
 
-			protocolImplementation, err := getLowLevelProtocol(protocol, startByte, endByte)
+			protocolImplementation, err := makeLowLevelProtocol(protocol, startByte, endByte)
 			if err != nil {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}

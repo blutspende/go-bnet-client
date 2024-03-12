@@ -11,7 +11,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func QueryCommandClientMode(app *cli.App) {
+func QueryCommand(app *cli.App) {
+
 	var (
 		deviceHost     string
 		devicePort     string
@@ -26,10 +27,9 @@ func QueryCommandClientMode(app *cli.App) {
 	)
 
 	command := cli.Command{
-		Name:      "query",
-		Aliases:   nil,
-		Usage:     `query <filename> <protocol [raw|lis1a1|stxetx|mllp]> <device-ip> <proxy: noproxy or haproxyv2>`,
-		UsageText: "usagetext",
+		Name:    "query",
+		Aliases: nil,
+		Usage:   `query <filename> <raw|lis1a1|stxetx|mllp> <devicehost> <listenport> [--proxy haproxyv2]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -53,7 +53,7 @@ func QueryCommandClientMode(app *cli.App) {
 			},
 			&cli.StringFlag{
 				Name:        "proxy",
-				Usage:       "proxy (noproxy, haproxyv2)",
+				Usage:       "proxy noproxy (default), haproxyv2",
 				Required:    false,
 				Value:       "noproxy",
 				Destination: &proxy,
@@ -94,9 +94,9 @@ func QueryCommandClientMode(app *cli.App) {
 				return fmt.Errorf("invalid port in hostname: %s err: %s", devicePort, err.Error())
 			}
 
-			protocolImplementation, err := getLowLevelProtocol(protocol, startByte, endByte)
+			protocolImplementation, err := makeLowLevelProtocol(protocol, startByte, endByte)
 			if err != nil {
-				return fmt.Errorf("can not find protocol: %w", err)
+				return fmt.Errorf("invalid protocol %s - %w", protocol, err)
 			}
 
 			flags := c.Args().Slice()
@@ -106,48 +106,51 @@ func QueryCommandClientMode(app *cli.App) {
 				rawBytes = !rawBytes
 			}
 
-			go func() {
-				scanner := bufio.NewScanner(file)
-				scanner.Split(bufio.ScanLines)
-				var fileLines = make([][]byte, 0)
-				for scanner.Scan() {
-					fileLines = append(fileLines, []byte(scanner.Text()))
-				}
+			scanner := bufio.NewScanner(file)
+			scanner.Split(bufio.ScanLines)
+			var fileLines = make([][]byte, 0)
+			for scanner.Scan() {
+				fileLines = append(fileLines, []byte(scanner.Text()))
+			}
 
-				tcpClient := bloodlabnet.CreateNewTCPClient(
-					deviceHost,
-					devicePortInt,
-					protocolImplementation,
-					bloodlabnet.NoLoadBalancer,
-					bloodlabnet.DefaultTCPClientSettings)
+			tcpClient := bloodlabnet.CreateNewTCPClient(
+				deviceHost,
+				devicePortInt,
+				protocolImplementation,
+				bloodlabnet.NoLoadBalancer,
+				bloodlabnet.DefaultTCPClientSettings)
 
-				err = tcpClient.Connect()
-				if err != nil {
-					println(fmt.Errorf("cannot connect to host (%s): %s", args.Get(2), err.Error()))
-					return
-				}
+			err = tcpClient.Connect()
+			if err != nil {
+				return fmt.Errorf("cannot connect to host (%s): %s", args.Get(2), err.Error())
+			}
 
-				n, err := tcpClient.Send(fileLines)
-				if err != nil {
-					println(fmt.Errorf("failed to send file to host: %s", err.Error()))
-					return
-				}
-				if n <= 0 {
-					println("No data was sent by the client")
+			n, err := tcpClient.Send(fileLines)
+			if err != nil {
+				return fmt.Errorf("failed to send file to host: %s", err.Error())
+			}
+			if n <= 0 {
+				return fmt.Errorf("no data was sent by the client")
+			}
+			println("Successfully sent data.")
+
+			bytes, err := tcpClient.Receive()
+			if err != nil {
+				return fmt.Errorf("failed while waiting for a response - %s", err.Error())
+			}
+
+			fmt.Printf("Device-Host's response (%d bytes) (Non-printable characters in brackets <xx> decimal)\n", len(bytes))
+			fmt.Printf("--- start\n")
+			for _, x := range bytes {
+				if x < 32 {
+					fmt.Printf("<%02d>", x)
 				} else {
-					println("Successfully sent data")
+					fmt.Printf("%c", x)
 				}
+			}
+			fmt.Printf("\n--- end\n")
 
-				bytes, err := tcpClient.Receive()
-				if err != nil {
-					println(fmt.Errorf("failed while waiting for a response - %s", err.Error()))
-					return
-				}
-
-				fmt.Printf("Respone:\n%s", string(bytes))
-
-				tcpClient.Close()
-			}()
+			tcpClient.Close()
 
 			return nil
 
