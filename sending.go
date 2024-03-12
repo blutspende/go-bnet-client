@@ -50,12 +50,11 @@ func SendingCommand(c *cli.App) {
 		Action: func(c *cli.Context) error {
 
 			args := c.Args()
-			givenFlags := c.NArg()
-			if givenFlags != 3 {
-				return fmt.Errorf("invalid amount of arguments. Required: <hostname> <protocol> <file>")
+			if c.NArg() != 3 {
+				return fmt.Errorf("required: <hostname> <protocol> <file>")
 			}
 
-			protocolTypeImplementation, err := getLowLevelProtocol(args.Get(1), startByte, endByte)
+			protocol, err := getLowLevelProtocol(args.Get(1), startByte, endByte)
 			if err != nil {
 				return fmt.Errorf("invalid protocol '%w'", err)
 			}
@@ -82,7 +81,7 @@ func SendingCommand(c *cli.App) {
 				fileLines = append(fileLines, []byte(scanner.Text()))
 			}
 
-			tcpClient := bloodlabnet.CreateNewTCPClient(host, portInt, protocolTypeImplementation, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
+			tcpClient := bloodlabnet.CreateNewTCPClient(host, portInt, protocol, bloodlabnet.NoLoadBalancer, bloodlabnet.DefaultTCPClientSettings)
 			err = tcpClient.Connect()
 			if err != nil {
 				return fmt.Errorf("cannot connect to host (%s): %s", hostname, err.Error())

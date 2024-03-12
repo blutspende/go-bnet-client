@@ -25,7 +25,7 @@ func main() {
 	SendingCommand(app)
 	ListeningCommand(app)
 	DeviceCommand(app)
-	QueryCommand(app)
+	QueryCommandClientMode(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
