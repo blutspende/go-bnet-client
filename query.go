@@ -33,6 +33,7 @@ func QueryCommand(app *cli.App) {
 		Aliases: nil,
 		Usage: `send filecontent to device, waiting for answer, log answer to file
 		cli args -> query <filename> <protocol [raw|lis1a1|stxetx|mllp]> <devicehost> <listenport> <maxcon> <proxy: noproxy or haproxyv2>`,
+		UsageText: "usagetext",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",

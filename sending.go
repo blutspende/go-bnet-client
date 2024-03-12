@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"time"
 
 	bloodlabnet "github.com/blutspende/go-bloodlab-net"
 	"github.com/urfave/cli/v2"
@@ -23,9 +22,9 @@ func SendingCommand(c *cli.App) {
 	)
 
 	command := cli.Command{
-		Name: "send",
-		Usage: `send a file to a tcp server
-		cli args -> send <hostname> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <filename>`,
+		Name:        "send",
+		Description: "send a file to a tcp device",
+		Usage:       "send <hostname> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <filename>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "startbyte",
@@ -58,12 +57,12 @@ func SendingCommand(c *cli.App) {
 
 			protocolTypeImplementation, err := getLowLevelProtocol(args.Get(1), startByte, endByte)
 			if err != nil {
-				return fmt.Errorf("can not find protocol: %w", err)
+				return fmt.Errorf("invalid protocol '%w'", err)
 			}
 
 			host, port, err := net.SplitHostPort(args.Get(0))
 			if err != nil {
-				return fmt.Errorf("invalid host: %s err: %s", hostname, err.Error())
+				return fmt.Errorf("invalid host '%s' - %s", hostname, err.Error())
 			}
 
 			portInt, err := strconv.Atoi(port)
@@ -73,7 +72,7 @@ func SendingCommand(c *cli.App) {
 
 			file, err := os.Open(args.Get(2))
 			if err != nil {
-				return fmt.Errorf("failed to open file with path: %s and error: %s", path, err.Error())
+				return fmt.Errorf("failed to open file '%s' - %s", path, err.Error())
 			}
 
 			scanner := bufio.NewScanner(file)
@@ -93,7 +92,6 @@ func SendingCommand(c *cli.App) {
 			if err != nil {
 				return fmt.Errorf("failed to send file to host: %s", err.Error())
 			}
-			time.Sleep(time.Second * 5)
 
 			if n <= 0 {
 				println("No data was sent by the client")
