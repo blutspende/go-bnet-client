@@ -26,6 +26,7 @@ func main() {
 	ListeningCommand(app)
 	DeviceCommand(app)
 	QueryCommand(app)
+	FTPServerCommand(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
