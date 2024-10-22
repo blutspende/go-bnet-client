@@ -7,14 +7,15 @@ GOOS=windows GOARCH=386 go build -o windows/bnet32.exe
 
 # linux
 # 64-bit
-GOOS=linux GOARCH=amd64 go build -o linux/bnet64li
-
+GOOS=linux GOARCH=amd64 go build -o linux/bnet64
+GOOS=linux GOARCH=arm64 go build -o linux/bnet64arm
 # 32-bit
-GOOS=linux GOARCH=386 go build -o linux/bnet32li
+GOOS=linux GOARCH=386 go build -o linux/bnet32
+GOOS=linux GOARCH=arm go build -o linux/bnet32arm
 
 # macOS
-# 64-bit
-GOOS=darwin GOARCH=amd64 go build -o macOS/bnet64mac
-
+# 64-bit AMD
+GOOS=darwin GOARCH=amd64 go build -o macOS/bnet64
+GOOS=darwin GOARCH=arm64 go build -o macOS/bnet64arm
 
 https://www.digitalocean.com/community/tutorials/how-to-build-go-executables-for-multiple-platforms-on-ubuntu-16-04
