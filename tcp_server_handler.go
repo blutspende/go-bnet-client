@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	bloodlabNet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
+	bloodlabNet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnetProtocol "github.com/blutspende/go-bloodlab-net/protocol"
 )
 
 type TCPServerHandler interface {
-	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time)
+	DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) error
 	Connected(con bloodlabNet.Session) error
 	Disconnected(session bloodlabNet.Session)
 	Error(session bloodlabNet.Session, typeOfError bloodlabNet.ErrorType, err error)
@@ -55,10 +55,11 @@ func (h *tcpServerHandler) Connected(session bloodlabNet.Session) error {
 	return nil
 }
 
-func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) {
+func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []byte, receiveTimestamp time.Time) error {
 	_, err := session.RemoteAddress()
 	if err != nil {
 		println(fmt.Errorf("can not get remote address: %w", err))
+		return err
 	}
 
 	readAbleFile := make([]byte, 0)
@@ -90,6 +91,8 @@ func (h *tcpServerHandler) DataReceived(session bloodlabNet.Session, fileData []
 	}
 	fmt.Fprintln(os.Stdout, string(readAbleFile))
 	h.dataReceived = true
+
+	return nil
 }
 
 func (h *tcpServerHandler) Disconnected(session bloodlabNet.Session) {

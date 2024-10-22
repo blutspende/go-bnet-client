@@ -7,17 +7,17 @@ import (
 	"strconv"
 	"strings"
 
-	bloodlabnet "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/DRK-Blutspende-BaWueHe/go-bloodlab-net/protocol"
+	bloodlabnet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnetProtocol "github.com/blutspende/go-bloodlab-net/protocol"
 	"github.com/urfave/cli/v2"
 )
 
-var Version = "0.5.1"
+var Version = "0.5.2"
 
 func main() {
 	app := &cli.App{
-		Name:                 "Bnet helper",
-		Usage:                "Transfer a file to a TCP Server over BloodlabNet library or listen as a TCP Server",
+		Name:                 "Bnet-tool",
+		Usage:                "Communicate with lab equipment over low-level protocols mllp, lisA1, StxEtx",
 		EnableBashCompletion: true,
 		Version:              Version,
 	}
@@ -26,6 +26,7 @@ func main() {
 	ListeningCommand(app)
 	DeviceCommand(app)
 	QueryCommand(app)
+	FTPServerCommand(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
@@ -33,7 +34,7 @@ func main() {
 	}
 }
 
-func getLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabnetProtocol.Implementation, error) {
+func makeLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabnetProtocol.Implementation, error) {
 	var protocolTypeImplementation bloodlabnetProtocol.Implementation
 	switch protocol {
 	case "raw":
