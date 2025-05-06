@@ -1,18 +1,18 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
-	bloodlabnet "github.com/blutspende/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/blutspende/go-bloodlab-net/protocol"
+	bloodlabnet "github.com/blutspende/go-bnet"
+	bloodlabnetProtocol "github.com/blutspende/go-bnet/protocol"
 	"github.com/urfave/cli/v2"
 )
 
-var Version = "0.5.2"
+var Version = "0.5.3"
 
 func main() {
 	app := &cli.App{
@@ -34,7 +34,7 @@ func main() {
 	}
 }
 
-func makeLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabnetProtocol.Implementation, error) {
+func makeLowLevelProtocol(protocol string, startBytesStr, endBytesStr string) (bloodlabnetProtocol.Implementation, error) {
 	var protocolTypeImplementation bloodlabnetProtocol.Implementation
 	switch protocol {
 	case "raw":
@@ -45,20 +45,20 @@ func makeLowLevelProtocol(protocol string, startByte, endByte string) (bloodlabn
 		protocolTypeImplementation = bloodlabnetProtocol.Lis1A1Protocol(bloodlabnetProtocol.DefaultLis1A1ProtocolSettings())
 	case "mllp":
 		config := bloodlabnetProtocol.DefaultMLLPProtocolSettings()
-		if startByte != "" {
-			startByteInt, err := strconv.Atoi(startByte)
+		if startBytesStr != "" {
+			startBytes, err := hex.DecodeString(startBytesStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid startbyte: %s, err: %s", startByte, err.Error())
+				return nil, fmt.Errorf("invalid startbytes: %s, %s", startBytesStr, err.Error())
 			}
-			config = config.SetStartByte(byte(startByteInt))
+			config = config.SetStartBytes(startBytes)
 		}
 
-		if endByte != "" {
-			endByteInt, err := strconv.Atoi(endByte)
+		if endBytesStr != "" {
+			endBytes, err := hex.DecodeString(endBytesStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid startbyte: %s, err: %s", endByte, err.Error())
+				return nil, fmt.Errorf("invalid endbytes: %s, %s", endBytesStr, err.Error())
 			}
-			config = config.SetEndByte(byte(endByteInt))
+			config = config.SetEndBytes(endBytes)
 		}
 		protocolTypeImplementation = bloodlabnetProtocol.MLLP(config)
 	default:

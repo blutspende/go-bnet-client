@@ -18,4 +18,4 @@ GOOS=linux GOARCH=arm go build -o linux/bnet32arm
 GOOS=darwin GOARCH=amd64 go build -o macOS/bnet64
 GOOS=darwin GOARCH=arm64 go build -o macOS/bnet64arm
 
-https://www.digitalocean.com/community/tutorials/how-to-build-go-executables-for-multiple-platforms-on-ubuntu-16-04
+# https://www.digitalocean.com/community/tutorials/how-to-build-go-executables-for-multiple-platforms-on-ubuntu-16-04
