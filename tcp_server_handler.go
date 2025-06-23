@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	bloodlabNet "github.com/blutspende/go-bloodlab-net"
-	bloodlabnet "github.com/blutspende/go-bloodlab-net"
-	bloodlabnetProtocol "github.com/blutspende/go-bloodlab-net/protocol"
+	bloodlabNet "github.com/blutspende/go-bnet"
+	bloodlabnet "github.com/blutspende/go-bnet"
+	bloodlabnetProtocol "github.com/blutspende/go-bnet/protocol"
 )
 
 type TCPServerHandler interface {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	bloodlabnet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnet "github.com/blutspende/go-bnet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -16,8 +16,8 @@ func SendingCommand(c *cli.App) {
 	var path string = ""
 	var hostname string = ""
 	var (
-		startByte     string = ""
-		endByte       string = ""
+		startBytes    string = ""
+		endBytes      string = ""
 		lineBreakByte string = ""
 	)
 
@@ -27,18 +27,20 @@ func SendingCommand(c *cli.App) {
 		Usage:       "send <hostname> <protocol [raw|lis1a1|stxetx|mllp] Default:raw> <filename>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "startbyte",
-				Usage:       "startbyte for some protocols",
+				Name:        "startbytes",
+				Usage:       "startbytes for MLLP protocol provided in the format '0A0D1C'",
+				DefaultText: "0B",
 				Required:    false,
 				Value:       "",
-				Destination: &startByte,
+				Destination: &startBytes,
 			},
 			&cli.StringFlag{
-				Name:        "endbyte",
-				Usage:       "endbyte for some protocols",
+				Name:        "endbytes",
+				Usage:       "endbytes for MLLP protocol provided in the format '0A0D1C'",
+				DefaultText: "1C0D",
 				Required:    false,
 				Value:       "",
-				Destination: &endByte,
+				Destination: &endBytes,
 			}, &cli.StringFlag{
 				Name:        "linebreak",
 				Usage:       "linebreak for some protocols",
@@ -54,7 +56,7 @@ func SendingCommand(c *cli.App) {
 				return fmt.Errorf("required: <hostname> <protocol> <file>")
 			}
 
-			protocol, err := makeLowLevelProtocol(args.Get(1), startByte, endByte)
+			protocol, err := makeLowLevelProtocol(args.Get(1), startBytes, endBytes)
 			if err != nil {
 				return fmt.Errorf("invalid protocol '%w'", err)
 			}

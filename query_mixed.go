@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	bloodlabnet "github.com/blutspende/go-bloodlab-net"
+	bloodlabnet "github.com/blutspende/go-bnet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -21,8 +21,8 @@ func QueryCommandMixedMode(app *cli.App) {
 		maxConn        int
 		protocol       string
 		proxy          string
-		startByte      string
-		endByte        string
+		startBytes     string
+		endBytes       string
 		lineBreakByte  string
 		rawBytes       bool
 		showLinebreaks bool
@@ -35,18 +35,20 @@ func QueryCommandMixedMode(app *cli.App) {
 		Usage:       `query <filename> <protocol [raw|lis1a1|stxetx|mllp]> <devicehost> <listenport> <maxcon> <proxy: noproxy or haproxyv2>`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "startbyte",
-				Usage:       "startbyte for some protocols",
+				Name:        "startbytes",
+				Usage:       "startbytes for MLLP protocol provided in the format '0A0D1C'",
+				DefaultText: "0B",
 				Required:    false,
-				Value:       "",
-				Destination: &startByte,
+				Value:       "0B",
+				Destination: &startBytes,
 			},
 			&cli.StringFlag{
-				Name:        "endbyte",
-				Usage:       "endbyte for some protocols",
+				Name:        "endbytes",
+				Usage:       "endbytes for MLLP protocol provided in the format '0A0D1C'",
+				DefaultText: "1C0D",
 				Required:    false,
-				Value:       "",
-				Destination: &endByte,
+				Value:       "1C0D",
+				Destination: &endBytes,
 			}, &cli.StringFlag{
 				Name:        "linebreak",
 				Usage:       "linebreak for some protocols",
@@ -112,7 +114,7 @@ func QueryCommandMixedMode(app *cli.App) {
 				return fmt.Errorf("invalid proxy type: %w", err)
 			}
 
-			protocolImplementation, err := makeLowLevelProtocol(protocol, startByte, endByte)
+			protocolImplementation, err := makeLowLevelProtocol(protocol, startBytes, endBytes)
 			if err != nil {
 				return fmt.Errorf("can not find protocol: %w", err)
 			}
